@@ -24,8 +24,8 @@ trap cleanup EXIT
 
 DATE=`date '+%a %b %d %T %Z %Y'`
 DATE_UTC=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
-LOGFILE=/var/log/asterisk/connectlog
-NODESTATE_LOG=/var/log/asterisk/node-currentnodes.txt
+LOGFILE=/etc/asterisk/node-connectlog.txt
+NODESTATE_LOG=/etc/asterisk/node-currentnodes.txt
 NODE_QUERY_DELAY=5
 NODELIST_URL="https://allmondb.allstarlink.org/allmondb.php"
 NODELIST=/etc/asterisk/astdb.txt
