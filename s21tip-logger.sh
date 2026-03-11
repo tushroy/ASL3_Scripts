@@ -26,7 +26,7 @@ DATE=`date '+%a %b %d %T %Z %Y'`
 DATE_UTC=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 LOGFILE=/etc/asterisk/node-connectlog.txt
 NODESTATE_LOG=/etc/asterisk/node-currentnodes.txt
-NODE_QUERY_DELAY=5
+NODE_QUERY_DELAY=10
 NODELIST_URL="https://allmondb.allstarlink.org/allmondb.php"
 NODELIST=/etc/asterisk/astdb.txt
 MAX_AGE_HOURS=3   # configurable
@@ -127,80 +127,91 @@ fi
 LOGINFO="$DATE_UTC | $2 | $TYPE | $3 | $ASTINFO | $INOUT | $STATUS"
 echo $LOGINFO | sed 's/  */ /g' >> $LOGFILE
 
-sleep "$NODE_QUERY_DELAY"
-
-TMPNODEFILE="/tmp/rptnodes.$$"
-
-/usr/sbin/asterisk -rx "rpt nodes $2" > "$TMPNODEFILE"
-
-{
-grep ',' "$TMPNODEFILE" | tr ',' ' ' | while read -ra NODES; do
-for NODE in "${NODES[@]}"; do
-
-    NODE=$(echo "$NODE" | xargs)
-    [ -z "$NODE" ] && continue
-
-    MODE="Transceive"
-    NODENO="$NODE"
-
-    # Detect mode
-    if [[ "$NODE" =~ ^R ]]; then
-        MODE="Rx Only"
-        NODENO="${NODE#R}"
-    elif [[ "$NODE" =~ ^C ]]; then
-        MODE="Monitor"
-        NODENO="${NODE#C}"
-    elif [[ "$NODE" =~ ^T ]]; then
-        MODE="Transceive"
-        NODENO="${NODE#T}"
-    fi
-
-    TYPE=""
-    ASTINFO=""
-
-    COUNT=$(echo "$NODENO" | wc -m)
-    COUNT=$((COUNT - 1))
-
-    if [ "$NODENO" -eq "$NODENO" ] 2>/dev/null; then
-        TYPE=""
-    else
-        TYPE="Callsign"
-
-        if [[ "$NODENO" =~ "-P" ]]; then
-            ASTINFO="AllStar Phone Portal user"
-        else
-            ASTINFO="IaxRpt or Web Transceiver client"
-        fi
-    fi
-
-    if [ "$TYPE" != "Callsign" -a "$COUNT" == 7 ]; then
-        TYPE="EchoLink"
-        NODENO_ECOLINK="${NODENO:1}"
-        ASTINFO="EchoLink node $NODENO_ECOLINK"
-    fi
-
-    if [ "$TYPE" != "Callsign" -a "$COUNT" == 3 ]; then
-        TYPE="Extension"
-    fi
-
-    if [ "$TYPE" != "Callsign" -a "$TYPE" != "EchoLink" -a "$COUNT" -gt 3 ]; then
-        TYPE="AllStar"
-        ASTINFO=$(sed 's/\*//g' "$NODELIST" | grep "^$NODENO|" | sed 's/|/ /g' | sed "s/$NODENO//")
-    fi
-
-    [ -z "$TYPE" ] && TYPE="AllStar"
-
-    echo "$TYPE | $NODENO | $ASTINFO | $MODE"
-
-done
-done
-} > "$NODESTATE_LOG"
-
-rm -f "$TMPNODEFILE"
-
 # Release lock
 flock -u 200
 trap - EXIT
 cleanup
+
+LOCKFILE="/tmp/s21tip-logger.lock"
+
+# Try to get exclusive lock, exit if cannot
+exec 200>"$LOCKFILE"
+flock -n 200 || { echo "Script already running"; exit 0; }
+
+TMPNODEFILE="/tmp/rptnodes.$$"
+
+sleep "$NODE_QUERY_DELAY"
+
+while true; do
+	/usr/sbin/asterisk -rx "rpt nodes $2" > "$TMPNODEFILE"
+	
+	{
+	grep ',' "$TMPNODEFILE" | tr ',' ' ' | while read -ra NODES; do
+	for NODE in "${NODES[@]}"; do
+
+		NODE=$(echo "$NODE" | xargs)
+		[ -z "$NODE" ] && continue
+
+		MODE="Transceive"
+		NODENO="$NODE"
+
+		# Detect mode
+		if [[ "$NODE" =~ ^R ]]; then
+			MODE="Rx Only"
+			NODENO="${NODE#R}"
+		elif [[ "$NODE" =~ ^C ]]; then
+			MODE="Monitor"
+			NODENO="${NODE#C}"
+		elif [[ "$NODE" =~ ^T ]]; then
+			MODE="Transceive"
+			NODENO="${NODE#T}"
+		fi
+
+		TYPE=""
+		ASTINFO=""
+
+		COUNT=$(echo "$NODENO" | wc -m)
+		COUNT=$((COUNT - 1))
+
+		if [ "$NODENO" -eq "$NODENO" ] 2>/dev/null; then
+			TYPE=""
+		else
+			TYPE="Callsign"
+
+			if [[ "$NODENO" =~ "-P" ]]; then
+				ASTINFO="AllStar Phone Portal user"
+			else
+				ASTINFO="IaxRpt or Web Transceiver client"
+			fi
+		fi
+
+		if [ "$TYPE" != "Callsign" -a "$COUNT" == 7 ]; then
+			TYPE="EchoLink"
+			NODENO_ECOLINK="${NODENO:1}"
+			ASTINFO="EchoLink node $NODENO_ECOLINK"
+		fi
+
+		if [ "$TYPE" != "Callsign" -a "$COUNT" == 3 ]; then
+			TYPE="Extension"
+		fi
+
+		if [ "$TYPE" != "Callsign" -a "$TYPE" != "EchoLink" -a "$COUNT" -gt 3 ]; then
+			TYPE="AllStar"
+			ASTINFO=$(sed 's/\*//g' "$NODELIST" | grep "^$NODENO|" | sed 's/|/ /g' | sed "s/$NODENO//")
+		fi
+
+		[ -z "$TYPE" ] && TYPE="AllStar"
+
+		echo "$TYPE | $NODENO | $ASTINFO | $MODE"
+
+	done
+	done
+	} > "$NODESTATE_LOG"
+
+	rm -f "$TMPNODEFILE"
+
+    sleep "$NODE_QUERY_DELAY"
+
+done
 
 exit 0
