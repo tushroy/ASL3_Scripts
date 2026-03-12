@@ -89,6 +89,8 @@ fi
 # Determine type by length
 if [ "$TYPE" != "Callsign" -a "$COUNT" == 7 ]; then
 	TYPE="EchoLink"
+	NODENO_ECOLINK="${NODENO:1}"
+	ASTINFO="EchoLink node $NODENO_ECOLINK"
 fi
 if [ "$TYPE" != "Callsign" -a "$COUNT" == 3 ]; then
 	TYPE="Extension"
