@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AllStar 67163 Connection Monitor</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    background:#1e1e1e;
+    color:white;
+}
+
+.container{
+    display:flex;
+    height:100vh;
+    gap:10px;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+.panel{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    background:#2b2b2b;
+    border-radius:6px;
+    overflow:hidden;
+}
+
+.title{
+    background:#3a3a3a;
+    padding:8px;
+    font-weight:bold;
+    text-align:center;
+}
+
+.table-container{
+    overflow-y:auto;
+    flex:1;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+}
+
+th{
+    position:sticky;
+    top:0;
+    background:#444;
+}
+
+th,td{
+    padding:6px;
+    border-bottom:1px solid #444;
+    text-align:left;
+}
+
+tr:nth-child(even){
+    background:#333;
+}
+
+.connected{
+    background:#0a3d2f !important;
+}
+
+.disconnected{
+    background:#4b1f1f !important;
+}
+
+.in{
+    color:#00d0ff;
+}
+
+.out{
+    color:#ffc400;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="panel">
+        <div class="title">Current Connections</div>
+        <div class="table-container">
+            <table id="currentTable">
+                <thead>
+                    <tr>
+                        <th>Network</th>
+                        <th>Node</th>
+                        <th>Description</th>
+                        <th>Mode</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="title">Connection Log</div>
+        <div class="table-container">
+            <table id="logTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <!-- th>Source</th -->
+                        <th>Network</th>
+                        <th>Node</th>
+                        <th>Description</th>
+                        <th>Dir</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+
+const currentURL = "/log/current.txt";
+const logURL = "/log/log.txt";
+
+/* Prevent cache */
+function fetchNoCache(url){
+    return fetch(url + "?t=" + Date.now(), {cache:"no-store"});
+}
+
+/* Convert ISO UTC → browser local time */
+function formatTime(iso){
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2,'0');
+    const s = String(d.getSeconds()).padStart(2,'0');
+
+    const ampm = h>=12 ? "PM":"AM";
+    h = h%12 || 12;
+
+    return `${yyyy}-${mm}-${dd} ${h}:${m}:${s} ${ampm}`;
+}
+
+
+/* Load CURRENT table */
+async function loadCurrent(){
+
+    const res = await fetchNoCache(currentURL);
+    const text = await res.text();
+
+    const tbody = document.querySelector("#currentTable tbody");
+    tbody.innerHTML = "";
+
+    text.trim().split("\n").forEach(line=>{
+        const parts = line.split("|").map(p=>p.trim());
+
+        const tr = document.createElement("tr");
+
+        parts.forEach(p=>{
+            const td = document.createElement("td");
+            td.textContent = p;
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+
+/* Load LOG table */
+async function loadLog(){
+
+    const res = await fetchNoCache(logURL);
+    const text = await res.text();
+
+    const tbody = document.querySelector("#logTable tbody");
+    tbody.innerHTML = "";
+
+    text.trim().split("\n").reverse().forEach(line=>{
+
+        const p = line.split("|").map(v=>v.trim());
+
+        const tr = document.createElement("tr");
+
+        const time = formatTime(p[0]);
+        // const source = p[1];
+        const net = p[2];
+        const node = p[3];
+        const desc = p[4];
+        const dir = p[5];
+        const status = p[6];
+
+        if(status==="CONNECTED") tr.classList.add("connected");
+        if(status==="DISCONNECTED") tr.classList.add("disconnected");
+
+        const dirClass = dir.includes("IN") ? "in":"out";
+
+        const cells = [
+            // source
+            time,net,node,desc,dir,status
+        ];
+
+        cells.forEach((c,i)=>{
+            const td=document.createElement("td");
+            td.textContent=c;
+
+            if(i===5) td.classList.add(dirClass);
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+
+    });
+
+}
+
+
+/* Load both */
+async function init(){
+    await Promise.all([
+        loadCurrent(),
+        loadLog()
+    ]);
+}
+
+init();
+
+</script>
+
+</body>
+</html>
