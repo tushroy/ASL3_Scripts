@@ -125,6 +125,7 @@ elif [ "$TYPE" = "Extension" ]; then
 	echo "Extension Info:" $STATUS $INOUT $3
 fi
 
+[ -z "$ASTINFO" ] && ASTINFO="Private node"
 # Log to file
 LOGINFO="$DATE_UTC | $2 | $TYPE | $3 | $ASTINFO | $INOUT | $STATUS"
 echo $LOGINFO | sed 's/  */ /g' >>$LOGFILE
@@ -206,7 +207,7 @@ while true; do
 				fi
 
 				[ -z "$TYPE" ] && TYPE="AllStar"
-
+				[ -z "$ASTINFO" ] && ASTINFO="Private node"
 				echo "$TYPE | $NODENO | $ASTINFO | $MODE"
 
 			done
