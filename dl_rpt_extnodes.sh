@@ -2,10 +2,6 @@
 
 # Simple rpt_extnodes downloader with age check
 
-finish() {
-    return "$1" 2>/dev/null || exit "$1"
-}
-
 NODE_DB_HOST="snodes.allstarlink.org"
 URI="diffnodes.php"
 NODE_URL="http://${NODE_DB_HOST}/${URI}"
