@@ -4,7 +4,7 @@ FILE="/etc/asterisk/rpt.conf"
 TARGET="startup_macro = *81367163"
 ILINK_LINE="813 = ilink,13                    ; Permanently connect specified link -- transceive"
 
-read -rp "Enter node number: " NODE
+read -rp "Enter your personal node number: " NODE
 read -rp "Want BD ASL Node 67163 connect on startup? (y/n): " ans
 
 TMP_FILE=$(mktemp)
