@@ -62,7 +62,7 @@ flock -n 200 || exit 1
 LINES=$(wc -l <"$LOGFILE")
 if [ "$LINES" -ge "$MAX_LINES" ]; then
 	BACKUP="$LOGFILE.$(date '+%Y%m%d-%H%M%S')"
-	mv "$LOGFILE" "$BACKUP"
+	cp "$LOGFILE" "$BACKUP"
 	# Keep last TRIM_MARGIN lines in new log
 	tail -n $TRIM_MARGIN "$BACKUP" >"$LOGFILE"
 fi
